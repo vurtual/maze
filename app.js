@@ -1,28 +1,34 @@
 const canvas = document.querySelector('canvas')
-const cellSize = 30
+const cellSize = 20
 canvas.width = window.innerWidth - (window.innerWidth % cellSize) // - 3 * cellSize
 canvas.height = window.innerHeight - (window.innerHeight % cellSize) // - 3 * cellSize
 canvas.style.width = canvas.width
 canvas.style.height = canvas.height
 const ctx = canvas.getContext('2d')
 
-// const MOVEMENT_INTERVAL = 10
+const MOVEMENT_INTERVAL = 250
 const MODE = { RUN_FORWARD: 0, BACKTRACK: 1, COMPLETE: 2 }
-let mode = MODE.RUN_FORWARD
 
 let lastTime = 0
 let timeElapsedSinceLastMove = 0
 const animate = timestamp => {
   const deltaTime = timestamp - lastTime
   lastTime = timestamp
-  // timeElapsedSinceLastMove += timestamp
-  // if (timeElapsedSinceLastMove > MOVEMENT_INTERVAL) {
-  if (mode === MODE.RUN_FORWARD) Cell.moveToUnvisitedNeighbour()
-  if (mode === MODE.BACKTRACK) Cell.backtrack()
-  // timeElapsedSinceLastMove -= MOVEMENT_INTERVAL
-  // }
+  timeElapsedSinceLastMove += timestamp
+  if (timeElapsedSinceLastMove > MOVEMENT_INTERVAL) {
+    Grid.update()
+    timeElapsedSinceLastMove -= MOVEMENT_INTERVAL
+  }
   Grid.layout.flat().forEach(cell => cell.draw())
   window.requestAnimationFrame(animate)
+}
+
+const start = () => {
+  while (mode !== MODE.COMPLETE) {
+    if (mode === MODE.RUN_FORWARD) Cell.moveToUnvisitedNeighbour()
+    if (mode === MODE.BACKTRACK) Cell.backtrack()
+  }
+  Grid.layout.flat().forEach(cell => cell.draw())
 }
 
 class Cell {
@@ -34,58 +40,57 @@ class Cell {
         new Cell(col, row)
       }
     }
-    Grid.layout.flat().forEach(cell => cell.getNeighbours())
+    Grid.layout.flat().forEach(cell => (cell.neighbour = cell.getNeighbours()))
     animate(0)
   }
 
-  static moveToUnvisitedNeighbour() {
-    const current = Grid.layout.flat().find(cell => cell.current)
-    Grid.route.push(current)
-    // console.log(current)
-    // console.log(current.neighbours)
-    const unvisitedNeighbours = current.neighbours.filter(
-      neighbour => !neighbour.visited
+  moveToUnvisitedNeighbour(route) {
+    route.route.push(this)
+    if (this.neighbours.length == 0) this.neighbours = this.getNeighbours()
+    const unvisitedNeighbours = this.neighbours.filter(
+      neighbour => !neighbour.visited && !neighbour.current
     )
     if (unvisitedNeighbours.length > 0) {
       const next =
         unvisitedNeighbours[
           Math.floor(Math.random() * unvisitedNeighbours.length)
         ]
-      // console.log(next)
       next.current = true
-      current.current = false
-      current.visited = true
-      if (next.row === current.row + 1) {
+      this.current = false
+      this.visited = true
+      if (next.row === this.row + 1) {
         next.walls.n = false
-        current.walls.s = false
+        this.walls.s = false
       }
-      if (next.row === current.row - 1) {
+      if (next.row === this.row - 1) {
         next.walls.s = false
-        current.walls.n = false
+        this.walls.n = false
       }
-      if (next.col === current.col + 1) {
+      if (next.col === this.col + 1) {
         next.walls.w = false
-        current.walls.e = false
+        this.walls.e = false
       }
-      if (next.col === current.col - 1) {
+      if (next.col === this.col - 1) {
         next.walls.e = false
-        current.walls.w = false
+        this.walls.w = false
       }
+      route.current = next
     } else {
-      mode = MODE.BACKTRACK
+      route.mode = MODE.BACKTRACK
     }
   }
 
-  static backtrack() {
-    const current = Grid.route.pop()
-    if (Grid.route.length > 0) {
-      const previous = Grid.route.pop()
-      current.current = false
-      current.visited = true
+  backtrack(route) {
+    route.route.pop()
+    if (route.route.length > 0) {
+      const previous = route.route.pop()
+      this.current = false
+      this.visited = true
       previous.current = true
-      mode = MODE.RUN_FORWARD
+      route.mode = MODE.RUN_FORWARD
+      route.current = previous
     } else {
-      mode = MODE.COMPLETE
+      route.mode = MODE.COMPLETE
     }
   }
 
@@ -106,6 +111,22 @@ class Cell {
     this.current = false
     if (col === 0 && row === 0) {
       this.current = true
+      Grid.routes.push({ route: [], mode: MODE.RUN_FORWARD, current: this })
+    }
+    if (
+      col === canvas.width / Cell.size - 1 &&
+      row === canvas.height / Cell.size - 1
+    ) {
+      this.current = true
+      Grid.routes.push({ route: [], mode: MODE.RUN_FORWARD, current: this })
+    }
+    if (col === canvas.width / Cell.size - 1 && row === 0) {
+      this.current = true
+      Grid.routes.push({ route: [], mode: MODE.RUN_FORWARD, current: this })
+    }
+    if (col === 0 && row === canvas.height / Cell.size - 1) {
+      this.current = true
+      Grid.routes.push({ route: [], mode: MODE.RUN_FORWARD, current: this })
     }
   }
 
@@ -142,23 +163,42 @@ class Cell {
   }
 
   getNeighbours() {
+    // if (
+    //   this.row === canvas.height / Cell.size - 1 &&
+    //   this.col === canvas.width / Cell.size - 1
+    // )
+    //   return
+    const neighbours = []
     if (this.row > 0) {
-      this.neighbours.push(Grid.layout[this.col][this.row - 1])
+      neighbours.push(Grid.layout[this.col][this.row - 1])
     }
     if (this.row < Grid.layout[0].length - 1) {
-      this.neighbours.push(Grid.layout[this.col][this.row + 1])
+      neighbours.push(Grid.layout[this.col][this.row + 1])
     }
     if (this.col > 0) {
-      this.neighbours.push(Grid.layout[this.col - 1][this.row])
+      neighbours.push(Grid.layout[this.col - 1][this.row])
     }
     if (this.col < Grid.layout.length - 1) {
-      this.neighbours.push(Grid.layout[this.col + 1][this.row])
+      neighbours.push(Grid.layout[this.col + 1][this.row])
     }
+    return neighbours
   }
 }
 class Grid {
   static layout = []
-  static route = []
+  static routes = []
+  static update() {
+    Grid.routes.forEach(route => {
+      switch (route.mode) {
+        case MODE.RUN_FORWARD:
+          route.current.moveToUnvisitedNeighbour(route)
+          break
+        case MODE.BACKTRACK:
+          route.current.backtrack(route)
+          break
+      }
+    })
+  }
 }
 
 Cell.init()
