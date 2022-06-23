@@ -6,7 +6,7 @@ canvas.style.width = canvas.width
 canvas.style.height = canvas.height
 const ctx = canvas.getContext('2d')
 
-const MOVEMENT_INTERVAL = 250
+const MOVEMENT_INTERVAL = 50
 const MODE = { RUN_FORWARD: 0, BACKTRACK: 1, COMPLETE: 2 }
 
 let lastTime = 0
@@ -74,7 +74,11 @@ class Cell {
         next.walls.e = false
         this.walls.w = false
       }
+      next.color = route.color
       route.current = next
+      if (!next.visited) {
+        route.count++
+      }
     } else {
       route.mode = MODE.BACKTRACK
     }
@@ -91,6 +95,12 @@ class Cell {
       route.current = previous
     } else {
       route.mode = MODE.COMPLETE
+      if (
+        Grid.routes.filter(route => route.mode === MODE.COMPLETE).length ===
+        Grid.routes.length
+      ) {
+        Grid.routes.forEach(route => console.log(route.color.name, route.count))
+      }
     }
   }
 
@@ -111,28 +121,84 @@ class Cell {
     this.current = false
     if (col === 0 && row === 0) {
       this.current = true
-      Grid.routes.push({ route: [], mode: MODE.RUN_FORWARD, current: this })
+      this.color = {
+        visited: 'hsl(0, 100%, 25%)',
+        current: 'hsl(0, 100%, 60%)',
+      }
+      Grid.routes.push({
+        route: [],
+        count: 1,
+        mode: MODE.RUN_FORWARD,
+        current: this,
+        color: {
+          name: 'red',
+          visited: 'hsl(0, 100%, 25%)',
+          current: 'hsl(0, 100%, 60%)',
+        },
+      })
     }
     if (
       col === canvas.width / Cell.size - 1 &&
       row === canvas.height / Cell.size - 1
     ) {
       this.current = true
-      Grid.routes.push({ route: [], mode: MODE.RUN_FORWARD, current: this })
+      this.color = {
+        visited: 'hsl(60, 100%, 25%)',
+        current: 'hsl(60, 100%, 60%)',
+      }
+      Grid.routes.push({
+        route: [],
+        count: 1,
+        mode: MODE.RUN_FORWARD,
+        current: this,
+        color: {
+          name: 'yellow',
+          visited: 'hsl(60, 100%, 25%)',
+          current: 'hsl(60, 100%, 60%)',
+        },
+      })
     }
     if (col === canvas.width / Cell.size - 1 && row === 0) {
       this.current = true
-      Grid.routes.push({ route: [], mode: MODE.RUN_FORWARD, current: this })
+      this.color = {
+        visited: 'hsl(120, 100%, 25%)',
+        current: 'hsl(120, 100%, 60%)',
+      }
+      Grid.routes.push({
+        route: [],
+        count: 1,
+        mode: MODE.RUN_FORWARD,
+        current: this,
+        color: {
+          name: 'green',
+          visited: 'hsl(120, 100%, 25%)',
+          current: 'hsl(120, 100%, 60%)',
+        },
+      })
     }
     if (col === 0 && row === canvas.height / Cell.size - 1) {
       this.current = true
-      Grid.routes.push({ route: [], mode: MODE.RUN_FORWARD, current: this })
+      this.color = {
+        visited: 'hsl(180, 100%, 70%)',
+        current: 'hsl(180, 100%, 50%)',
+      }
+      Grid.routes.push({
+        route: [],
+        count: 1,
+        mode: MODE.RUN_FORWARD,
+        current: this,
+        color: {
+          color: 'cyan',
+          visited: 'hsl(180, 100%, 25%)',
+          current: 'hsl(180, 100%, 60%)',
+        },
+      })
     }
   }
 
   draw() {
     if (this.current || this.visited) {
-      ctx.fillStyle = this.current ? 'rgb(241, 150, 35)' : 'rgb(127, 100, 80)'
+      ctx.fillStyle = this.current ? this.color.visited : this.color.current
       ctx.fillRect(this.x, this.y, Cell.size, Cell.size)
     }
     ctx.strokeStyle = this.wallColor
@@ -163,11 +229,6 @@ class Cell {
   }
 
   getNeighbours() {
-    // if (
-    //   this.row === canvas.height / Cell.size - 1 &&
-    //   this.col === canvas.width / Cell.size - 1
-    // )
-    //   return
     const neighbours = []
     if (this.row > 0) {
       neighbours.push(Grid.layout[this.col][this.row - 1])
