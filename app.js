@@ -6,7 +6,7 @@ canvas.style.width = canvas.width
 canvas.style.height = canvas.height
 const ctx = canvas.getContext('2d')
 
-const MOVEMENT_INTERVAL = 50
+const MOVEMENT_INTERVAL = 20
 const MODE = { RUN_FORWARD: 0, BACKTRACK: 1, COMPLETE: 2 }
 
 let lastTime = 0
